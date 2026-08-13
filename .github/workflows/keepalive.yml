@@ -1,0 +1,42 @@
+name: Keepalive
+
+# Keeps THIS repo's scheduled workflows alive forever. See README for why a cron
+# cannot keep itself alive without committing something.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # TEMPORARY while proving the scheduler fires. Widen to daily after.
+  workflow_dispatch:
+    inputs:
+      force_commit:
+        description: 'Commit even if the repo is not stale (tests the 50-day path)'
+        type: boolean
+        default: false
+
+jobs:
+  touch-repo:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need real history to read the last commit date
+      - name: Commit only once the repo is going stale
+        env:
+          FORCE: ${{ inputs.force_commit }}
+        run: |
+          set -euo pipefail
+          age_days=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "days since last commit: $age_days (threshold 50, force=$FORCE)"
+          # 50 leaves 10 days of slack before GitHub's 60-day cutoff, and keeps
+          # this to ~7 commits a year instead of 365.
+          if [ "$age_days" -lt 50 ] && [ "$FORCE" != "true" ]; then
+            echo "repo is active, no commit needed"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive, reset the 60-day scheduled-workflow timer"
+          git push
+          echo "pushed an empty commit; the 60-day clock is reset"
