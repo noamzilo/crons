@@ -5,7 +5,8 @@ name: Keepalive
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # TEMPORARY while proving the scheduler fires. Widen to daily after.
+    - cron: '47 6 * * *' # daily, staggered off the ping so they do not queue together
+    - cron: '*/5 * * * *' # TEMPORARY: proving the scheduler fires here at all. REMOVE once seen.
   workflow_dispatch:
     inputs:
       force_commit:
