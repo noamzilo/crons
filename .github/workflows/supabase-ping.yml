@@ -16,22 +16,14 @@ jobs:
     strategy:
       fail-fast: false # one dead project must not hide the other's result
       matrix:
-        include:
-          - target: stg
-            required: true
-          - target: prd
-            required: false # prd has no data; ping it only if a secret is provided
+        target: [stg, prd]
     steps:
       - name: Ping ${{ matrix.target }}
         env:
           CONN: ${{ matrix.target == 'stg' && secrets.SUPABASE_STG_URL || secrets.SUPABASE_PRD_URL }}
         run: |
           if [ -z "$CONN" ]; then
-            if [ "${{ matrix.required }}" = "true" ]; then
-              echo "::error::secret for ${{ matrix.target }} is not set"
-              exit 1
-            fi
-            echo "no secret for ${{ matrix.target }}, skipping (set SUPABASE_PRD_URL to enable)"
-            exit 0
+            echo "::error::secret for ${{ matrix.target }} is not set"
+            exit 1
           fi
           psql "$CONN" -w -tAc 'select current_database(), now()'
